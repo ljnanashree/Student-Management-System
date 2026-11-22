@@ -1,5 +1,8 @@
 venv/
+venv311/
 __pycache__/
 .pytest_cache/
 *.pyc
 .env
+students.db
+change_password.py
