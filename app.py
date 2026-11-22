@@ -5,6 +5,9 @@ import csv
 import io
 from functools import wraps
 
+import psycopg
+from psycopg.rows import dict_row
+
 from flask import (
     Flask, render_template, request,
     redirect, url_for, session, make_response
@@ -28,31 +31,97 @@ app.config["DATABASE"] = os.path.join(
 
 
 # DATABASE CONNECTION
+class DatabaseConnection:
+    def __init__(self, connection, is_postgres):
+        self.connection = connection
+        self.is_postgres = is_postgres
+
+    def execute(self, query, params=()):
+        if self.is_postgres:
+            query = query.replace("?", "%s")
+
+        return self.connection.execute(query, params)
+
+    def __enter__(self):
+        self.connection.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self.connection.__exit__(
+            exc_type, exc_value, traceback
+        )
+
+
+
 def get_db():
-    db = sqlite3.connect(app.config["DATABASE"])
-    db.row_factory = sqlite3.Row
-    return db
+    # SQLite is allowed only during automated tests.
+    if app.config.get("TESTING"):
+        connection = sqlite3.connect(app.config["DATABASE"])
+        connection.row_factory = sqlite3.Row
+        return DatabaseConnection(connection, False)
+
+    # Production must always use PostgreSQL.
+    database_url = os.environ.get("DATABASE_URL")
+
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL is missing. PostgreSQL connection required."
+        )
+
+    connection = psycopg.connect(
+        database_url,
+        row_factory=dict_row
+    )
+
+    return DatabaseConnection(connection, True)
+
 
 
 # CREATE TABLES AND INITIAL ADMIN
 def init_db():
-    with get_db() as db:
-        db.execute("""
+    is_postgres = (
+        bool(os.environ.get("DATABASE_URL"))
+        and not app.config.get("TESTING")
+    )
+
+    if is_postgres:
+        students_table = """
+            CREATE TABLE IF NOT EXISTS students (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                roll TEXT NOT NULL UNIQUE,
+                course TEXT NOT NULL
+            )
+        """
+
+        admins_table = """
+            CREATE TABLE IF NOT EXISTS admins (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL
+            )
+        """
+    else:
+        students_table = """
             CREATE TABLE IF NOT EXISTS students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 roll TEXT NOT NULL UNIQUE,
                 course TEXT NOT NULL
             )
-        """)
+        """
 
-        db.execute("""
+        admins_table = """
             CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL
             )
-        """)
+        """
+
+    with get_db() as db:
+        db.execute(students_table)
+        db.execute(admins_table)
 
         username = os.environ.get("ADMIN_USERNAME", "admin")
         password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
@@ -67,7 +136,6 @@ def init_db():
                 INSERT INTO admins (username, password_hash)
                 VALUES (?, ?)
             """, (username, generate_password_hash(password)))
-
 
 # LOGIN PROTECTION
 def login_required(view):
@@ -131,8 +199,8 @@ def home():
         """, (f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
 
         total = db.execute(
-            "SELECT COUNT(*) FROM students"
-        ).fetchone()[0]
+    "SELECT COUNT(*) AS count FROM students"
+).fetchone()["count"]
 
     return render_template(
         "index.html",
@@ -160,8 +228,8 @@ def add_student():
                 VALUES (?, ?, ?)
             """, (name, roll, course))
 
-    except sqlite3.IntegrityError:
-        return "Roll number already exists", 409
+    except (sqlite3.IntegrityError, psycopg.IntegrityError):
+     return "Roll number already exists", 409
 
     return redirect(url_for("home"))
 
@@ -222,13 +290,13 @@ def reports():
 
         # Total students
         total = db.execute(
-            "SELECT COUNT(*) FROM students"
-        ).fetchone()[0]
+          "SELECT COUNT(*) AS count FROM students"
+        ).fetchone()["count"]
 
         # Number of different courses
         course_count = db.execute(
-            "SELECT COUNT(DISTINCT course) FROM students"
-        ).fetchone()[0]
+          "SELECT COUNT(DISTINCT course) AS count FROM students"
+        ).fetchone()["count"]
 
         # Students in each course
         course_stats = db.execute("""
