@@ -253,7 +253,7 @@ The application is deployed using **Render**.
 - Continuous integration: GitHub Actions
 - Production server: Gunicorn
 
-**Live Application:** Add your Render website URL here.
+**Live Application:** https://student-management-system-j6en.onrender.com
 
 ## 🔮 Future Improvements
 
