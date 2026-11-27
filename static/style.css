@@ -558,3 +558,183 @@ footer {
         gap: 5px;
     }
 }
+
+/* =================================
+   DARK THEME - STUDENTHUB
+================================= */
+
+:root {
+    color-scheme: dark;
+    --bg: #0b1120;
+    --surface: #151e30;
+    --surface-light: #1c2940;
+    --border: #29364d;
+    --text: #e5edf8;
+    --muted: #94a3b8;
+    --primary: #60a5fa;
+    --success: #34d399;
+    --danger: #fb7185;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.dashboard {
+    background: var(--bg);
+}
+
+.sidebar {
+    background: #101827;
+    border-right: 1px solid var(--border);
+    color: var(--text);
+}
+
+.brand,
+.sidebar .brand {
+    color: #f8fafc;
+}
+
+.brand-light {
+    color: var(--primary);
+}
+
+.menu-title,
+.sidebar small {
+    color: var(--muted);
+}
+
+.nav-link {
+    color: #b8c5d8;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: #1e3554;
+    color: #93c5fd;
+}
+
+.main-content {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.topbar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar h1,
+.panel-heading h2 {
+    color: #f1f5f9;
+}
+
+.topbar p,
+.panel-heading p,
+.stat-card small {
+    color: var(--muted);
+}
+
+.panel,
+.stat-card,
+.course-report {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 14px;
+}
+
+.stat-card p,
+.course-info,
+.student-name {
+    color: var(--text);
+}
+
+.stat-card h2 {
+    color: #f8fafc;
+}
+
+input,
+select,
+textarea {
+    background: var(--surface-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #8292aa;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid var(--primary);
+    border-color: var(--primary);
+}
+
+table {
+    background: var(--surface);
+    color: var(--text);
+}
+
+th {
+    background: var(--surface-light);
+    color: #cbd5e1;
+}
+
+td {
+    border-bottom: 1px solid var(--border);
+    color: #dbe5f2;
+}
+
+tr:hover {
+    background: #1c2940;
+}
+
+.course-badge {
+    background: #233b5b;
+    color: #93c5fd;
+}
+
+.progress-track {
+    background: #29364d;
+}
+
+.progress-fill {
+    background: var(--primary);
+}
+
+button,
+.export-btn,
+.logout-btn {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+button:hover,
+.export-btn:hover,
+.logout-btn:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+}
+
+.empty-message {
+    color: var(--muted);
+}
+
+footer {
+    color: var(--muted);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .topbar {
+        background: var(--bg);
+    }
+}

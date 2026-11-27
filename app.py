@@ -3,7 +3,7 @@ import os
 import sqlite3
 import csv
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 
 import psycopg
@@ -78,6 +78,7 @@ def get_db():
 
 
 
+
 # CREATE TABLES AND INITIAL ADMIN
 def init_db():
     is_postgres = (
@@ -115,6 +116,16 @@ def init_db():
             )
         """
 
+        activity_logs_table = """
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """
+
     else:
         students_table = """
             CREATE TABLE IF NOT EXISTS students (
@@ -145,11 +156,21 @@ def init_db():
             )
         """
 
+        activity_logs_table = """
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """
+
     with get_db() as db:
         db.execute(students_table)
         db.execute(admins_table)
         db.execute(attendance_table)
-
+        db.execute(activity_logs_table)
 
         username = os.environ.get("ADMIN_USERNAME", "admin")
         password = os.environ.get("ADMIN_PASSWORD", "Admin@123")
@@ -164,6 +185,25 @@ def init_db():
                 INSERT INTO admins (username, password_hash)
                 VALUES (?, ?)
             """, (username, generate_password_hash(password)))
+
+# RECORD RECENT ACTIVITY
+def log_activity(action, details, db=None):
+    username = session.get("admin", "admin")
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if db is not None:
+        db.execute("""
+            INSERT INTO activity_logs
+                (username, action, details, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (username, action, details, created_at))
+    else:
+        with get_db() as connection:
+            connection.execute("""
+                INSERT INTO activity_logs
+                    (username, action, details, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (username, action, details, created_at))
 
 # LOGIN PROTECTION
 def login_required(view):
@@ -256,6 +296,11 @@ def add_student():
                 VALUES (?, ?, ?)
             """, (name, roll, course))
 
+        log_activity(
+            "Student Added",
+            f"Added {name} (Roll: {roll})"
+    )
+
     except (sqlite3.IntegrityError, psycopg.IntegrityError):
      return "Roll number already exists", 409
 
@@ -263,13 +308,26 @@ def add_student():
 
 
 # DELETE STUDENT
+# DELETE STUDENT
 @app.route("/delete/<int:student_id>", methods=["POST"])
 @login_required
 def delete_student(student_id):
     with get_db() as db:
-        db.execute(
-            "DELETE FROM students WHERE id = ?",
+        student = db.execute(
+            "SELECT name, roll FROM students WHERE id = ?",
             (student_id,)
+        ).fetchone()
+
+        if student is not None:
+            db.execute(
+                "DELETE FROM students WHERE id = ?",
+                (student_id,)
+            )
+
+    if student is not None:
+        log_activity(
+            "Student Deleted",
+            f"Deleted {student['name']} (Roll: {student['roll']})"
         )
 
     return redirect(url_for("home"))
@@ -302,7 +360,11 @@ def edit_student(student_id):
                     SET name = ?, roll = ?, course = ?
                     WHERE id = ?
                 """, (name, roll, course, student_id))
-
+                log_activity(
+                    "Student Updated",
+                    f"Updated {name} (Roll: {roll})",
+                    db
+                )
                 return redirect(url_for("home"))
 
             except sqlite3.IntegrityError:
@@ -315,6 +377,40 @@ def edit_student(student_id):
 @app.route("/reports")
 @login_required
 def reports():
+    # ANALYTICS DATE FILTER
+    period = request.args.get("period", "30")
+
+    if period == "custom":
+        start_value = request.args.get("start_date", "")
+        end_value = request.args.get("end_date", "")
+
+        start_date = get_valid_attendance_date(start_value)
+        end_date = get_valid_attendance_date(end_value)
+
+        if not start_date or not end_date:
+            return "Invalid date range", 400
+
+        start_date = datetime.strptime(
+            start_date, "%Y-%m-%d"
+        ).date()
+
+        end_date = datetime.strptime(
+            end_date, "%Y-%m-%d"
+        ).date()
+
+        if start_date > end_date:
+            return "Start date cannot be after end date", 400
+
+    elif period in ("7", "30"):
+        end_date = date.today()
+        start_date = end_date - timedelta(days=int(period) - 1)
+
+    else:
+        return "Invalid analytics period", 400
+
+    start_date_value = start_date.isoformat()
+    end_date_value = end_date.isoformat()
+
     with get_db() as db:
 
         # Total students
@@ -341,7 +437,13 @@ def reports():
             ORDER BY id DESC
             LIMIT 5
         """).fetchall()
-
+        # RECENT ACTIVITY
+        recent_activities = db.execute("""
+            SELECT username, action, details, created_at
+            FROM activity_logs
+            ORDER BY id DESC
+            LIMIT 10
+        """).fetchall()
         # Overall attendance summary
         attendance_summary = db.execute("""
             SELECT
@@ -390,6 +492,53 @@ def reports():
             LIMIT 10
         """).fetchall()
 
+
+        # FILTERED DAILY ATTENDANCE TREND
+        attendance_trend = db.execute("""
+            SELECT
+                attendance_date,
+                SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END)
+                    AS present_count,
+                SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END)
+                    AS absent_count
+            FROM attendance
+            WHERE attendance_date BETWEEN ? AND ?
+            GROUP BY attendance_date
+            ORDER BY attendance_date ASC
+        """, (start_date, end_date)).fetchall()
+
+        # FILTERED PRESENT / ABSENT DISTRIBUTION
+        filtered_distribution = db.execute("""
+            SELECT
+                COUNT(*) AS total_records,
+                COALESCE(SUM(
+                    CASE WHEN status = 'Present' THEN 1 ELSE 0 END
+                ), 0) AS present_count,
+                COALESCE(SUM(
+                    CASE WHEN status = 'Absent' THEN 1 ELSE 0 END
+                ), 0) AS absent_count
+            FROM attendance
+            WHERE attendance_date BETWEEN ? AND ?
+        """, (start_date, end_date)).fetchone()
+
+        # FILTERED STUDENT ATTENDANCE
+        filtered_student_attendance = db.execute("""
+            SELECT
+                s.name,
+                s.roll,
+                COUNT(a.id) AS total_days,
+                COALESCE(SUM(
+                    CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END
+                ), 0) AS present_days
+            FROM students s
+            LEFT JOIN attendance a
+                ON s.id = a.student_id
+                AND a.attendance_date BETWEEN ? AND ?
+            GROUP BY s.id, s.name, s.roll
+            ORDER BY s.name ASC
+        """, (start_date, end_date)).fetchall()
+
+
     # Calculate course percentages
     course_data = []
 
@@ -404,6 +553,57 @@ def reports():
             "student_count": item["student_count"],
             "percentage": percentage
         })
+
+    
+    # PREPARE ATTENDANCE TREND CHART DATA
+    trend_labels = [
+        str(item["attendance_date"])
+        for item in attendance_trend
+    ]
+
+    trend_present = [
+        item["present_count"]
+        for item in attendance_trend
+    ]
+
+    trend_absent = [
+        item["absent_count"]
+        for item in attendance_trend
+    ]
+
+    # PREPARE PRESENT / ABSENT DISTRIBUTION
+    filtered_present = filtered_distribution["present_count"]
+    filtered_absent = filtered_distribution["absent_count"]
+
+    # PREPARE STUDENT ATTENDANCE CHART
+    filtered_student_data = []
+
+    for student in filtered_student_attendance:
+        total_days = student["total_days"]
+        present_days = student["present_days"]
+
+        percentage = (
+            round(present_days / total_days * 100, 1)
+            if total_days else 0
+        )
+
+        filtered_student_data.append({
+    "name": student["name"],
+    "roll": student["roll"],
+    "present_days": present_days,
+    "total_days": total_days,
+    "percentage": percentage
+})
+
+    # PREPARE COURSE CHART
+    course_labels = [
+        item["course"] for item in course_data
+    ]
+
+    course_values = [
+        item["student_count"] for item in course_data
+    ]
+
 
     # Overall attendance calculations
     attendance_total = attendance_summary["total_records"]
@@ -436,6 +636,7 @@ def reports():
             "percentage": percentage
         })
 
+    # RETURN AFTER THE LOOP
     return render_template(
         "reports.html",
         total=total,
@@ -447,7 +648,19 @@ def reports():
         attendance_absent=attendance_absent,
         attendance_rate=attendance_rate,
         attendance_data=attendance_data,
-        attendance_history=attendance_history
+        attendance_history=attendance_history,
+        period=period,
+        start_date=start_date_value,
+        end_date=end_date_value,
+        trend_labels=trend_labels,
+        trend_present=trend_present,
+        trend_absent=trend_absent,
+        filtered_present=filtered_present,
+        filtered_absent=filtered_absent,
+        course_labels=course_labels,
+        course_values=course_values,
+        filtered_student_data=filtered_student_data,
+        recent_activities=recent_activities
     )
 
 
@@ -511,6 +724,9 @@ def save_attendance():
             "SELECT id FROM students"
         ).fetchall()
 
+        present_count = 0
+        absent_count = 0
+
         for student in students:
             student_id = student["id"]
 
@@ -521,6 +737,11 @@ def save_attendance():
             if status not in ("Present", "Absent"):
                 return "Invalid attendance status", 400
 
+            if status == "Present":
+                present_count += 1
+            else:
+                absent_count += 1
+
             db.execute("""
                 INSERT INTO attendance
                     (student_id, attendance_date, status)
@@ -528,6 +749,12 @@ def save_attendance():
                 ON CONFLICT (student_id, attendance_date)
                 DO UPDATE SET status = excluded.status
             """, (student_id, selected_date, status))
+
+    log_activity(
+        "Manual Attendance",
+        f"Saved attendance for {selected_date}: "
+        f"{present_count} Present, {absent_count} Absent"
+    )
 
     return redirect(url_for(
         "attendance",
@@ -560,6 +787,11 @@ def bulk_attendance():
                 ON CONFLICT (student_id, attendance_date)
                 DO UPDATE SET status = 'Present'
             """, (student["id"], selected_date))
+
+    log_activity(
+        "Bulk Attendance",
+        f"Marked {len(students)} students Present for {selected_date}"
+    )
 
     return redirect(url_for(
         "attendance",

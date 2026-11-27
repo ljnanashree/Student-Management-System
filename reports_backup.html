@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Reports</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <span>Student<span class="brand-light">Hub</span></span>
+        </div>
+
+        <p class="menu-title">MAIN MENU</p>
+
+        <nav>
+            <a href="{{ url_for('home') }}" class="nav-link">
+                ▦ Dashboard
+            </a>
+
+            <a href="{{ url_for('home') }}#add-student" class="nav-link">
+                ＋ Add Student
+            </a>
+
+            <a href="{{ url_for('home') }}#student-records" class="nav-link">
+                ▤ Students
+            </a>
+
+            <a href="{{ url_for('attendance') }}" class="nav-link">
+    ✓ Attendance
+</a>
+
+            <a href="{{ url_for('reports') }}" class="nav-link active">
+                ▥ Reports
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="profile">
+                <div class="avatar">A</div>
+                <div>
+                    <strong>Administrator</strong>
+                    <small>Management Panel</small>
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h1>Reports & Analytics</h1>
+                <p>View student statistics and course distribution.</p>
+            </div>
+
+            <div class="topbar-actions">
+                <a href="{{ url_for('export_students') }}"
+                   class="export-btn">
+                    ↓ Export CSV
+                </a>
+
+                <form action="{{ url_for('logout') }}" method="POST">
+                    <button type="submit" class="logout-btn">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </header>
+
+
+        <!-- SUMMARY CARDS -->
+        <section class="stats-grid">
+
+            <div class="stat-card blue">
+                <div class="stat-icon">♙</div>
+                <p>Total Students</p>
+                <h2>{{ total }}</h2>
+                <small>Registered student records</small>
+            </div>
+
+            <div class="stat-card purple">
+                <div class="stat-icon">▤</div>
+                <p>Total Courses</p>
+                <h2>{{ course_count }}</h2>
+                <small>Distinct courses registered</small>
+            </div>
+
+        </section>
+
+
+        <!-- COURSE DISTRIBUTION -->
+        <section class="panel">
+        
+<!-- ATTENDANCE ANALYTICS -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Attendance Analytics</h2>
+        <p>Overall attendance statistics across recorded sessions.</p>
+    </div>
+
+    <div class="stats-grid">
+
+        <div class="stat-card blue">
+            <div class="stat-icon">♙</div>
+            <p>Total Attendance Records</p>
+            <h2>{{ attendance_total }}</h2>
+        </div>
+
+        <div class="stat-card purple">
+            <div class="stat-icon">✓</div>
+            <p>Present</p>
+            <h2>{{ attendance_present }}</h2>
+        </div>
+
+        <div class="stat-card blue">
+            <div class="stat-icon">✕</div>
+            <p>Absent</p>
+            <h2>{{ attendance_absent }}</h2>
+        </div>
+
+        <div class="stat-card green">
+            <div class="stat-icon">%</div>
+            <p>Overall Attendance</p>
+            <h2>{{ attendance_rate }}%</h2>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- INDIVIDUAL STUDENT ATTENDANCE -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Student Attendance Percentage</h2>
+        <p>Attendance percentage calculated from recorded sessions.</p>
+    </div>
+
+    <div class="table-wrapper">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Course</th>
+                    <th>Present Days</th>
+                    <th>Total Days</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for student in attendance_data %}
+
+                <tr>
+                    <td>{{ student.roll }}</td>
+
+                    <td class="student-name">
+                        {{ student.name }}
+                    </td>
+
+                    <td>{{ student.course }}</td>
+
+                    <td>{{ student.present_days }}</td>
+
+                    <td>{{ student.total_days }}</td>
+
+                    <td>
+                        {% if student.total_days == 0 %}
+                            <span class="course-badge">
+                                Not Recorded
+                            </span>
+                        {% elif student.percentage < 75 %}
+                            <span style="color: #dc2626; font-weight: bold;">
+                                {{ student.percentage }}% - Low
+                            </span>
+                        {% else %}
+                            <span style="color: #16a34a; font-weight: bold;">
+                                {{ student.percentage }}%
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="6" class="empty-message">
+                        No students available.
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ATTENDANCE HISTORY -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Attendance History</h2>
+        <p>Latest 10 dates with recorded attendance.</p>
+    </div>
+
+    <div class="table-wrapper">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Records</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in attendance_history %}
+
+                <tr>
+                    <td>{{ item.attendance_date }}</td>
+                    <td>{{ item.total_students }}</td>
+                    <td style="color: #16a34a;">
+                        {{ item.present_count }}
+                    </td>
+                    <td style="color: #dc2626;">
+                        {{ item.absent_count }}
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="4" class="empty-message">
+                        No attendance history available.
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
+
+            <div class="panel-heading">
+                <h2>Course Distribution</h2>
+                <p>Number and percentage of students in each course.</p>
+            </div>
+
+            {% if course_stats %}
+
+                {% for item in course_stats %}
+
+                    <div class="course-report">
+
+                        <div class="course-info">
+                            <strong>{{ item.course }}</strong>
+
+                            <span>
+                                {{ item.student_count }} students
+                                ({{ item.percentage }}%)
+                            </span>
+                        </div>
+
+                        <div class="progress-track">
+                            <div class="progress-fill"
+                                 style="width: {{ item.percentage }}%">
+                            </div>
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <p class="empty-message">
+                    No student data available for reports.
+                </p>
+
+            {% endif %}
+
+        </section>
+
+
+        <!-- RECENT STUDENTS -->
+        <section class="panel">
+
+            <div class="panel-heading">
+                <h2>Recently Added Students</h2>
+                <p>Latest five student records by record ID.</p>
+            </div>
+
+            <div class="table-wrapper">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Roll Number</th>
+                            <th>Course</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for student in recent_students %}
+
+                        <tr>
+                            <td>#{{ student.id }}</td>
+                            <td class="student-name">
+                                {{ student.name }}
+                            </td>
+                            <td>{{ student.roll }}</td>
+                            <td>
+                                <span class="course-badge">
+                                    {{ student.course }}
+                                </span>
+                            </td>
+                        </tr>
+
+                        {% else %}
+
+                        <tr>
+                            <td colspan="4" class="empty-message">
+                                No student records available.
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+            Student Management System © 2026
+        </footer>
+
+    </main>
+
+</div>
+
+</body>
+</html>
