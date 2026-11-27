@@ -1,11 +1,11 @@
 # 🎓 Student Management System
 
-A complete, user-friendly **Student Management System** built using Python and Flask. This web application provides student record management, attendance tracking, reports, analytics and CSV exports through a clean web interface.
+A complete, user-friendly **Student Management System** built using Python and Flask. This web application provides student record management, attendance tracking, reports, analytics, activity monitoring, and CSV exports through a modern dashboard interface.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1.3-black?logo=flask)
-![Testing](https://img.shields.io/badge/Tests-31%20Passed-brightgreen?logo=pytest)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Passing-green?logo=githubactions)
+![Tests](https://img.shields.io/badge/Tests-62%20Passed-brightgreen?logo=pytest)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI-green?logo=githubactions)
 ![Deployment](https://img.shields.io/badge/Deployment-Render-purple?logo=render)
 
 ---
@@ -14,9 +14,9 @@ A complete, user-friendly **Student Management System** built using Python and F
 
 The **Student Management System** is a web-based application developed using Python and Flask to simplify student record management and attendance tracking.
 
-It provides an admin interface to manage student information, record daily attendance, monitor attendance percentages, generate reports and export data as CSV files.
+It provides an administrator dashboard to manage student information, record daily attendance, monitor attendance percentages, generate analytical reports, and export records as CSV files.
 
-The application supports both manual and bulk attendance marking, making attendance management easier and more efficient.
+The system supports manual and bulk attendance marking, date-based filtering, automated testing, and database management using SQLite and PostgreSQL.
 
 ## ✨ Features
 
@@ -29,28 +29,56 @@ The application supports both manual and bulk attendance marking, making attenda
 - Validate required student information.
 - Prevent duplicate roll numbers.
 
-### 🔐 Authentication
-- Admin login system.
+### 🔐 Authentication and Security
+- Administrator login system.
 - Password-based authentication.
 - Protected application routes.
 - Secure logout functionality.
+- Password hashing.
+- Activity logging to track important administrative actions.
 
 ### 📅 Attendance Management
 - View the attendance management dashboard.
 - Mark students as Present or Absent manually.
-- Automatically mark all students Present using bulk attendance.
+- Perform bulk attendance marking.
 - Correct attendance records after bulk marking.
 - Prevent duplicate attendance records for the same student and date.
 - View attendance history by selecting a date.
 - Validate attendance dates.
+- Track individual student attendance.
 
 ### 📊 Reports and Analytics
-- Student reports and course distribution.
-- Attendance analytics dashboard.
+- Interactive reports and analytics dashboard.
+- Daily attendance trend visualization.
+- Present vs Absent doughnut chart.
+- Course-wise student distribution chart.
+- Student-wise attendance percentage chart.
 - Calculate individual student attendance percentages.
+- Filter reports by date range.
 - View attendance history.
-- Track Present and Absent records.
-- Display attendance information for reporting.
+- Display total attendance, present and absent records.
+- Monitor course distribution.
+
+### 🚨 Dashboard Notifications
+- Low Attendance Alerts for students below 75%.
+- Attendance Missing notifications for students without attendance records.
+- Recent Activities notification showing the latest recorded activities.
+- Separate identification of students with no attendance records.
+
+### 📈 Attendance Visualization
+- Color-coded attendance status badges.
+- Low attendance indicators.
+- Good attendance indicators.
+- Not Recorded status for students without attendance records.
+- Visual attendance progress bars.
+
+### 📝 Activity Monitoring
+- Track student additions.
+- Track student updates.
+- Track student deletions.
+- Record manual attendance activities.
+- Record bulk attendance activities.
+- Display the latest 10 activities in the Reports dashboard.
 
 ### 📥 CSV Export
 - Export student records as CSV.
@@ -58,23 +86,29 @@ The application supports both manual and bulk attendance marking, making attenda
 - Download attendance for a selected date.
 - Organize exported information for further analysis.
 
-### ⚙️ Automated Testing
-- Includes a pytest-based automated test suite.
+### 🧪 Automated Testing
+- Pytest-based automated test suite.
 - Tests student management functionality.
 - Tests authentication and protected routes.
 - Tests manual and bulk attendance.
 - Tests attendance history and analytics.
 - Tests CSV exports.
+- Tests activity logging and reporting.
+
+**Latest confirmed test result: 62 tests passed.**
 
 ## 🛠️ Technologies Used
 
 | Technology | Purpose |
 |---|---|
-| Python | Core programming language |
+| Python 3.11+ | Core programming language |
 | Flask | Web application framework |
-| SQLite / PostgreSQL | Database management |
-| HTML | Web page structure |
-| CSS | User interface styling |
+| SQLite | Test database |
+| PostgreSQL | Production database |
+| HTML5 | Web page structure |
+| CSS3 | Dashboard styling |
+| JavaScript | Interactive functionality |
+| Chart.js | Data visualization |
 | Jinja2 | Dynamic HTML templates |
 | pytest | Automated testing |
 | Gunicorn | Production WSGI server |
@@ -92,7 +126,7 @@ Student-Management-System/
 │       └── python-tests.yml
 │
 ├── static/
-│   └── CSS and other static assets
+│   └── style.css
 │
 ├── templates/
 │   ├── index.html
@@ -145,9 +179,14 @@ python -m pip install -r requirements.txt
 
 ### 6. Configure environment variables
 
-Configure the required environment variables for your application, including the secret key and database connection settings.
+Configure the environment variables required by your application, including:
 
-Do not commit passwords, secret keys or database credentials to GitHub.
+- `SECRET_KEY`
+- `DATABASE_URL`
+
+Use the appropriate database configuration for your environment.
+
+**Important:** Never commit passwords, secret keys, or database credentials to GitHub.
 
 ## ▶️ Run the Application
 
@@ -173,12 +212,13 @@ Run the following command:
 python -m pytest -v
 ```
 
-**Latest testing result: 31 tests passed.**
+**Latest confirmed result: 62 tests passed.**
 
 The test suite covers:
 
 - Login and authentication.
-- Student addition, editing and deletion.
+- Protected routes.
+- Student addition, editing, and deletion.
 - Duplicate roll number prevention.
 - Student search.
 - Reports and analytics.
@@ -191,7 +231,7 @@ The test suite covers:
 - Invalid attendance date handling.
 - Attendance analytics.
 - Attendance CSV export.
-- Protected routes.
+- Activity logging.
 
 ## 🔄 Continuous Integration – GitHub Actions
 
@@ -209,20 +249,22 @@ The application is deployed using **Render**.
 
 - Hosting platform: Render
 - Source code: GitHub
+- Database: PostgreSQL
 - Continuous integration: GitHub Actions
-- Deployment status: Live
+- Production server: Gunicorn
 
 **Live Application:** Add your Render website URL here.
 
 ## 🔮 Future Improvements
 
-- Role-based access for administrators, teachers and students.
+- Role-based access for administrators, teachers, and students.
 - Student profile photographs and document uploads.
-- Advanced attendance reports and visual charts.
-- Email notifications for attendance.
 - PDF report generation.
-- Improved dashboard customization.
+- Email notifications for low attendance.
+- Advanced dashboard customization.
 - Advanced filtering and pagination.
+- More detailed student performance analytics.
+- Improved reporting and data visualization.
 
 ## 👩‍💻 Author
 
