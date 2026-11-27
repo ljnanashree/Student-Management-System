@@ -9,7 +9,7 @@
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <style>
         .filter-form {
@@ -63,6 +63,111 @@
             border-radius: 8px;
             background: rgba(22, 163, 74, 0.12);
         }
+
+        /* ATTENDANCE STATUS BADGES */
+.attendance-badge {
+    display: inline-block;
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-low {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.12);
+}
+
+.badge-good {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.12);
+}
+
+.badge-none {
+    color: #64748b;
+    background: rgba(100, 116, 139, 0.15);
+}
+
+
+/* ATTENDANCE PROGRESS BARS */
+.attendance-progress {
+    width: 120px;
+    height: 8px;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.attendance-progress-fill {
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.3s ease;
+}
+
+.progress-low {
+    background: #dc2626;
+}
+
+.progress-good {
+    background: #16a34a;
+}
+
+.progress-none {
+    background: #94a3b8;
+}
+
+
+/* DASHBOARD NOTIFICATIONS */
+.notification-panel {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.notification-card {
+    padding: 16px;
+    border-radius: 12px;
+    border-left: 4px solid;
+}
+
+.notification-card h3 {
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.notification-card p {
+    font-size: 13px;
+    margin: 0;
+}
+
+.notification-card strong {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.notification-danger {
+    background: rgba(220, 38, 38, 0.10);
+    border-color: #dc2626;
+}
+
+.notification-warning {
+    background: rgba(217, 119, 6, 0.10);
+    border-color: #d97706;
+}
+
+.notification-info {
+    background: rgba(37, 99, 235, 0.10);
+    border-color: #2563eb;
+}
+
+@media (max-width: 768px) {
+    .notification-panel {
+        grid-template-columns: 1fr;
+    }
+}
 
         @media (max-width: 768px) {
             .chart-grid {
@@ -142,8 +247,18 @@
             </div>
         </header>
 
-        <!-- STUDENT SUMMARY -->
-        <section class="stats-grid">
+        <!-- STUDENT SUMMARY AND NOTIFICATIONS -->
+
+{% set low_students = filtered_student_data
+    | selectattr('percentage', 'lt', 75)
+    | selectattr('total_days', 'gt', 0)
+    | list %}
+
+{% set unrecorded_students = filtered_student_data
+    | selectattr('total_days', 'equalto', 0)
+    | list %}
+
+<section class="stats-grid">
 
             <div class="stat-card blue">
                 <div class="stat-icon">♙</div>
@@ -158,70 +273,63 @@
                 <h2>{{ course_count }}</h2>
                 <small>Distinct registered courses</small>
             </div>
-
+        
         </section>
+
+        <!-- DASHBOARD NOTIFICATION PANEL -->
+        <section class="notification-panel">
+
+            <div class="notification-card notification-danger">
+                <h3>⚠ Low Attendance</h3>
+                <strong>{{ low_students | length }}</strong>
+                <p>Students below 75% attendance.</p>
+            </div>
+
+            <div class="notification-card notification-warning">
+                <h3>! Attendance Missing</h3>
+                <strong>{{ unrecorded_students | length }}</strong>
+                <p>Students without attendance records.</p>
+            </div>
+
+            <div class="notification-card notification-info">
+                <h3>▤ Recent Activities</h3>
+                <strong>{{ recent_activities | length }}</strong>
+                <p>Latest recorded system activities.</p>
+            </div>
+
+        
+                </section>
 
         <!-- DATE FILTER -->
         <section class="panel">
 
             <div class="panel-heading">
-                <h2>Attendance Date Filter</h2>
-                <p>Choose the period for attendance analytics.</p>
+                <h2>Filter Reports</h2>
+                <p>Select a date range to filter attendance analytics.</p>
             </div>
 
-            <form method="GET"
-                  action="{{ url_for('reports') }}"
-                  class="filter-form">
-
+            <form method="GET" action="{{ url_for('reports') }}" class="filter-form">
                 <div>
-                    <label for="period">Date range</label>
-
+                    <label for="period">Date Range</label>
                     <select name="period" id="period">
-                        <option value="7"
-                            {% if period == '7' %}selected{% endif %}>
-                            Last 7 days
-                        </option>
-
-                        <option value="30"
-                            {% if period == '30' %}selected{% endif %}>
-                            Last 30 days
-                        </option>
-
-                        <option value="custom"
-                            {% if period == 'custom' %}selected{% endif %}>
-                            Custom range
-                        </option>
+                        <option value="7" {% if period == '7' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30" {% if period == '30' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
                     </select>
                 </div>
 
                 <div id="custom-dates">
-                    <label for="start_date">Start date</label>
-                    <input type="date"
-                           name="start_date"
-                           id="start_date"
-                           value="{{ start_date }}">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" name="start_date" id="start_date" value="{{ start_date or '' }}">
                 </div>
 
                 <div id="custom-end-date">
-                    <label for="end_date">End date</label>
-                    <input type="date"
-                           name="end_date"
-                           id="end_date"
-                           value="{{ end_date }}">
+                    <label for="end_date">End Date</label>
+                    <input type="date" name="end_date" id="end_date" value="{{ end_date or '' }}">
                 </div>
 
-                <button type="submit" class="export-btn">
-                    Apply Filter
-                </button>
-
+                <button type="submit">Apply Filter</button>
             </form>
-
-            <p style="margin-top: 12px;">
-                Showing attendance from
-                <strong>{{ start_date }}</strong>
-                to
-                <strong>{{ end_date }}</strong>
-            </p>
 
         </section>
 
@@ -311,38 +419,57 @@
 
         </section>
 
-        <!-- LOW ATTENDANCE ALERTS -->
-        <section class="panel">
+        
+<!-- LOW ATTENDANCE ALERTS -->
+<section class="panel">
 
-            <div class="panel-heading">
-                <h2>Low Attendance Alerts</h2>
-                <p>Students below 75% attendance in the selected period.</p>
-            </div>
+    <div class="panel-heading">
+        <h2>⚠ Low Attendance Alerts</h2>
+        <p>Students below 75% attendance in the selected period.</p>
+    </div>
 
-            {% set low_students = filtered_student_data
-                | selectattr('percentage', 'lt', 75)
-                | selectattr('percentage', 'ge', 0)
-                | list %}
+    {% set low_students = filtered_student_data
+        | selectattr('percentage', 'lt', 75)
+        | selectattr('total_days', 'gt', 0)
+        | list %}
 
-            {% if low_students %}
+    {% if low_students %}
 
-                {% for student in low_students %}
-                    <div class="alert-item">
-                        <strong>{{ student.name }}</strong>
-                        ({{ student.roll }})
-                        — {{ student.percentage }}% attendance
-                    </div>
-                {% endfor %}
+        {% for student in low_students %}
+            <div class="alert-item">
 
-            {% else %}
+                <strong>{{ student.name }}</strong>
+                (Roll: {{ student.roll }})
 
-                <p class="success-message">
-                    No students have attendance below 75% in this period.
+                <p style="margin: 6px 0 0;">
+                    Attendance:
+                    <strong>{{ student.percentage }}%</strong>
+                    <br>
+                    Present days: {{ student.present_days }}
+                    <br>
+                    Total recorded days: {{ student.total_days }}
+                    <br>
+                    Absent days:
+                    {{ student.total_days - student.present_days }}
                 </p>
 
-            {% endif %}
+                <small style="color: #dc2626;">
+                    Attendance is below the required 75%.
+                </small>
 
-        </section>
+            </div>
+        {% endfor %}
+
+    {% else %}
+
+        <p class="success-message">
+            ✓ No students have attendance below 75% in this period.
+        </p>
+
+    {% endif %}
+
+</section>
+
 
         <!-- STUDENT ATTENDANCE TABLE -->
         <section class="panel">
@@ -372,19 +499,49 @@
                             <td class="student-name">{{ student.name }}</td>
                             <td>{{ student.present_days }}</td>
                             <td>{{ student.total_days }}</td>
-                            <td>
-                                {% if student.total_days == 0 %}
-                                    Not Recorded
-                                {% elif student.percentage < 75 %}
-                                    <span style="color:#dc2626;">
-                                        {{ student.percentage }}% - Low
-                                    </span>
-                                {% else %}
-                                    <span style="color:#16a34a;">
-                                        {{ student.percentage }}%
-                                    </span>
-                                {% endif %}
-                            </td>
+                            
+
+<td>
+    {% if student.total_days == 0 %}
+
+        <span class="attendance-badge badge-none">
+            Not Recorded
+        </span>
+
+        <div class="attendance-progress">
+            <div class="attendance-progress-fill progress-none"
+                 style="width: 0%;">
+            </div>
+        </div>
+
+    {% elif student.percentage < 75 %}
+
+        <span class="attendance-badge badge-low">
+            {{ student.percentage }}% - Low
+        </span>
+
+        <div class="attendance-progress">
+            <div class="attendance-progress-fill progress-low"
+                 style="width: {{ student.percentage }}%;">
+            </div>
+        </div>
+
+    {% else %}
+
+        <span class="attendance-badge badge-good">
+            {{ student.percentage }}% - Good
+        </span>
+
+        <div class="attendance-progress">
+            <div class="attendance-progress-fill progress-good"
+                 style="width: {{ student.percentage }}%;">
+            </div>
+        </div>
+
+    {% endif %}
+</td>
+
+
                         </tr>
                         {% else %}
                         <tr>
@@ -566,22 +723,32 @@
 
 <script>
     // Show custom date inputs only when custom range is selected.
-    const periodSelect = document.getElementById("period");
-    const customDates = document.getElementById("custom-dates");
-    const customEndDate = document.getElementById("custom-end-date");
+const periodSelect = document.getElementById("period");
+const customDates = document.getElementById("custom-dates");
+const customEndDate = document.getElementById("custom-end-date");
 
-    function updateDateInputs() {
-        const isCustom = periodSelect.value === "custom";
-
-        customDates.style.display = isCustom ? "block" : "none";
-        customEndDate.style.display = isCustom ? "block" : "none";
-
-        document.getElementById("start_date").required = isCustom;
-        document.getElementById("end_date").required = isCustom;
+function updateDateInputs() {
+    if (!periodSelect || !customDates || !customEndDate) {
+        return;
     }
 
+    const isCustom = periodSelect.value === "custom";
+
+    customDates.style.display = isCustom ? "block" : "none";
+    customEndDate.style.display = isCustom ? "block" : "none";
+
+    const startDate = document.getElementById("start_date");
+    const endDate = document.getElementById("end_date");
+
+    if (startDate) startDate.required = isCustom;
+    if (endDate) endDate.required = isCustom;
+}
+
+if (periodSelect) {
     periodSelect.addEventListener("change", updateDateInputs);
-    updateDateInputs();
+}
+
+updateDateInputs();
 
     // Chart data comes from Flask and the real database.
     const trendLabels = {{ trend_labels | tojson }};
