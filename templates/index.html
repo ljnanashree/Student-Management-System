@@ -32,9 +32,14 @@
         ▤ Students
     </a>
 
+    <a href="/attendance" class="nav-link">
+    📅 Attendance
+</a>
+
     <a href="{{ url_for('reports') }}" class="nav-link">
         ▥ Reports
     </a>
+    
 </nav>
 
         <div class="sidebar-bottom">
@@ -100,6 +105,25 @@
 
         <!-- ADD STUDENT -->
         <section class="panel" id="add-student">
+            <!-- ATTENDANCE MANAGEMENT -->
+<section class="panel" id="attendance-management">
+
+    <div class="panel-heading">
+        <div>
+            <h2>📅 Attendance Management</h2>
+            <p>
+                Manage daily student attendance, mark Present or Absent,
+                and view attendance records.
+            </p>
+        </div>
+    </div>
+
+    <a href="/attendance" class="primary-btn"
+       style="display: inline-block; text-decoration: none;">
+        Open Attendance Management →
+    </a>
+
+</section>
             <div class="panel-heading">
                 <div>
                     <h2>Add New Student</h2>
