@@ -36,6 +36,10 @@
                 ▤ Students
             </a>
 
+            <a href="{{ url_for('attendance') }}" class="nav-link">
+    ✓ Attendance
+</a>
+
             <a href="{{ url_for('reports') }}" class="nav-link active">
                 ▥ Reports
             </a>
@@ -100,6 +104,172 @@
 
         <!-- COURSE DISTRIBUTION -->
         <section class="panel">
+        
+<!-- ATTENDANCE ANALYTICS -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Attendance Analytics</h2>
+        <p>Overall attendance statistics across recorded sessions.</p>
+    </div>
+
+    <div class="stats-grid">
+
+        <div class="stat-card blue">
+            <div class="stat-icon">♙</div>
+            <p>Total Attendance Records</p>
+            <h2>{{ attendance_total }}</h2>
+        </div>
+
+        <div class="stat-card purple">
+            <div class="stat-icon">✓</div>
+            <p>Present</p>
+            <h2>{{ attendance_present }}</h2>
+        </div>
+
+        <div class="stat-card blue">
+            <div class="stat-icon">✕</div>
+            <p>Absent</p>
+            <h2>{{ attendance_absent }}</h2>
+        </div>
+
+        <div class="stat-card green">
+            <div class="stat-icon">%</div>
+            <p>Overall Attendance</p>
+            <h2>{{ attendance_rate }}%</h2>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- INDIVIDUAL STUDENT ATTENDANCE -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Student Attendance Percentage</h2>
+        <p>Attendance percentage calculated from recorded sessions.</p>
+    </div>
+
+    <div class="table-wrapper">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Course</th>
+                    <th>Present Days</th>
+                    <th>Total Days</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for student in attendance_data %}
+
+                <tr>
+                    <td>{{ student.roll }}</td>
+
+                    <td class="student-name">
+                        {{ student.name }}
+                    </td>
+
+                    <td>{{ student.course }}</td>
+
+                    <td>{{ student.present_days }}</td>
+
+                    <td>{{ student.total_days }}</td>
+
+                    <td>
+                        {% if student.total_days == 0 %}
+                            <span class="course-badge">
+                                Not Recorded
+                            </span>
+                        {% elif student.percentage < 75 %}
+                            <span style="color: #dc2626; font-weight: bold;">
+                                {{ student.percentage }}% - Low
+                            </span>
+                        {% else %}
+                            <span style="color: #16a34a; font-weight: bold;">
+                                {{ student.percentage }}%
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="6" class="empty-message">
+                        No students available.
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- ATTENDANCE HISTORY -->
+<section class="panel">
+
+    <div class="panel-heading">
+        <h2>Attendance History</h2>
+        <p>Latest 10 dates with recorded attendance.</p>
+    </div>
+
+    <div class="table-wrapper">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Records</th>
+                    <th>Present</th>
+                    <th>Absent</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in attendance_history %}
+
+                <tr>
+                    <td>{{ item.attendance_date }}</td>
+                    <td>{{ item.total_students }}</td>
+                    <td style="color: #16a34a;">
+                        {{ item.present_count }}
+                    </td>
+                    <td style="color: #dc2626;">
+                        {{ item.absent_count }}
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="4" class="empty-message">
+                        No attendance history available.
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+</section>
+
 
             <div class="panel-heading">
                 <h2>Course Distribution</h2>

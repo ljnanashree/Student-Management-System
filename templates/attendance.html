@@ -1,0 +1,212 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Management</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <span>Student<span class="brand-light">Hub</span></span>
+        </div>
+
+        <p class="menu-title">MAIN MENU</p>
+
+        <nav>
+            <a href="{{ url_for('home') }}" class="nav-link">
+                ▦ Dashboard
+            </a>
+
+            <a href="{{ url_for('home') }}#add-student" class="nav-link">
+                ＋ Add Student
+            </a>
+
+            <a href="{{ url_for('home') }}#student-records" class="nav-link">
+                ▤ Students
+            </a>
+
+            <a href="{{ url_for('attendance') }}" class="nav-link active">
+                ✓ Attendance
+            </a>
+
+            <a href="{{ url_for('reports') }}" class="nav-link">
+                ▥ Reports
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="profile">
+                <div class="avatar">A</div>
+                <div>
+                    <strong>Administrator</strong>
+                    <small>Management Panel</small>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <h1>Attendance Management</h1>
+                <p>Record and manage student attendance.</p>
+            </div>
+
+            <div class="topbar-actions">
+                <form action="{{ url_for('logout') }}" method="POST">
+                    <button type="submit" class="logout-btn">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <section class="panel">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Attendance for a Date</h2>
+                    <p>Select a date to manage attendance.</p>
+                </div>
+            </div>
+
+            <form method="GET" action="{{ url_for('attendance') }}"
+                  class="student-form">
+
+                <div class="form-group">
+                    <label>Attendance Date</label>
+                    <input type="date" name="date"
+                           value="{{ selected_date }}" required>
+                </div>
+
+                <button type="submit" class="primary-btn">
+                    Load Attendance
+                </button>
+            </form>
+
+        </section>
+
+        <section class="panel">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Automatic Attendance</h2>
+                    <p>Mark all registered students present with one click.</p>
+                </div>
+            </div>
+
+            
+            <form method="POST"
+                  action="{{ url_for('bulk_attendance') }}">
+
+                <input type="hidden" name="date"
+                       value="{{ selected_date }}">
+
+                <button type="submit" class="primary-btn"
+                        onclick="return confirm(
+                        'Mark all students Present for this date?')">
+                    ✓ Mark All Present
+                </button>
+            </form>
+
+            <!-- DOWNLOAD ATTENDANCE CSV -->
+            <br>
+
+            <a href="{{ url_for('export_attendance_csv', date=selected_date) }}"
+               class="primary-btn"
+               style="display: inline-block; text-decoration: none;">
+                ↓ Download Attendance CSV
+            </a>
+
+
+        </section>
+
+        <section class="panel">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Student Attendance</h2>
+                    <p>Manually change each student's status.</p>
+                </div>
+            </div>
+
+            {% if students %}
+
+            <form method="POST"
+                  action="{{ url_for('save_attendance') }}">
+
+                <input type="hidden" name="date"
+                       value="{{ selected_date }}">
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Roll Number</th>
+                                <th>Student Name</th>
+                                <th>Course</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>{{ student.roll }}</td>
+                                <td>{{ student.name }}</td>
+                                <td>{{ student.course }}</td>
+
+                                <td>
+                                    <select name="status_{{ student.id }}">
+                                        <option value="Present"
+                                            {% if student.status == 'Present' %}
+                                            selected
+                                            {% endif %}>
+                                            Present
+                                        </option>
+
+                                        <option value="Absent"
+                                            {% if student.status == 'Absent' %}
+                                            selected
+                                            {% endif %}>
+                                            Absent
+                                        </option>
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <br>
+
+                <button type="submit" class="primary-btn">
+                    Save Attendance
+                </button>
+
+            </form>
+
+            {% else %}
+
+            <p>No students registered yet.</p>
+
+            {% endif %}
+
+        </section>
+
+    </main>
+</div>
+
+</body>
+</html>
+```

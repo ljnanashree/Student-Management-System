@@ -209,3 +209,330 @@ def test_add_requires_login(client):
 
     assert response.status_code == 302
     assert "/login" in response.location
+
+# ==============================
+# ATTENDANCE TESTS
+# ==============================
+
+def test_attendance_page(client):
+    login(client)
+    add_test_student(client)
+
+    response = client.get("/attendance")
+
+    assert response.status_code == 200
+    assert b"Attendance Management" in response.data
+    assert b"Rahul" in response.data
+
+
+def test_attendance_requires_login(client):
+    response = client.get("/attendance")
+
+    assert response.status_code == 302
+    assert "/login" in response.location
+
+
+def test_manual_attendance(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    response = client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        f"status_{student['id']}": "Present"
+    })
+
+    assert response.status_code == 302
+
+    with get_db() as db:
+        record = db.execute(
+            "SELECT * FROM attendance WHERE student_id = ?",
+            (student["id"],)
+        ).fetchone()
+
+    assert record["status"] == "Present"
+
+
+def test_manual_absent_attendance(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        f"status_{student['id']}": "Absent"
+    })
+
+    with get_db() as db:
+        record = db.execute(
+            "SELECT status FROM attendance WHERE student_id = ?",
+            (student["id"],)
+        ).fetchone()
+
+    assert record["status"] == "Absent"
+
+
+def test_bulk_attendance(client):
+    login(client)
+    add_test_student(client)
+    add_test_student(client, "Priya", "102", "BCA")
+
+    response = client.post("/attendance/bulk", data={
+        "date": "2026-11-27"
+    })
+
+    assert response.status_code == 302
+
+    with get_db() as db:
+        records = db.execute("""
+            SELECT status FROM attendance
+            WHERE attendance_date = ?
+        """, ("2026-11-27",)).fetchall()
+
+    assert len(records) == 2
+    assert all(r["status"] == "Present" for r in records)
+
+
+def test_correct_bulk_attendance(client):
+    login(client)
+    add_test_student(client)
+    add_test_student(client, "Priya", "102", "BCA")
+
+    client.post("/attendance/bulk", data={
+        "date": "2026-11-27"
+    })
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '102'"
+        ).fetchone()
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        "status_1": "Present",
+        f"status_{student['id']}": "Absent"
+    })
+
+    with get_db() as db:
+        record = db.execute(
+            "SELECT status FROM attendance WHERE student_id = ?",
+            (student["id"],)
+        ).fetchone()
+
+    assert record["status"] == "Absent"
+
+
+def test_duplicate_attendance_prevention(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    attendance_data = {
+        "date": "2026-11-27",
+        f"status_{student['id']}": "Present"
+    }
+
+    client.post("/attendance/save", data=attendance_data)
+    client.post("/attendance/save", data=attendance_data)
+
+    with get_db() as db:
+        count = db.execute("""
+            SELECT COUNT(*) AS count
+            FROM attendance
+            WHERE student_id = ?
+            AND attendance_date = ?
+        """, (student["id"], "2026-11-27")).fetchone()["count"]
+
+    assert count == 1
+
+
+def test_attendance_history(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-26",
+        f"status_{student['id']}": "Present"
+    })
+
+    response = client.get(
+        "/attendance?date=2026-11-26"
+    )
+
+    assert response.status_code == 200
+    assert b"2026-11-26" in response.data
+    assert b"Present" in response.data
+
+
+def test_invalid_attendance_date(client):
+    login(client)
+
+    response = client.get(
+        "/attendance?date=invalid"
+    )
+
+    assert response.status_code == 400
+
+
+# ==============================
+# ATTENDANCE ANALYTICS TESTS
+# ==============================
+
+def test_reports_attendance_analytics(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        f"status_{student['id']}": "Present"
+    })
+
+    response = client.get("/reports")
+
+    assert response.status_code == 200
+    assert b"Attendance Analytics" in response.data
+    assert b"Student Attendance Percentage" in response.data
+    assert b"100.0%" in response.data
+
+
+def test_reports_attendance_history(client):
+    login(client)
+    add_test_student(client)
+
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id FROM students WHERE roll = '101'"
+        ).fetchone()
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-26",
+        f"status_{student['id']}": "Absent"
+    })
+
+    response = client.get("/reports")
+
+    assert response.status_code == 200
+    assert b"Attendance History" in response.data
+    assert b"2026-11-26" in response.data
+
+
+def test_reports_without_attendance(client):
+    login(client)
+    add_test_student(client)
+
+    response = client.get("/reports")
+
+    assert response.status_code == 200
+    assert b"Attendance Analytics" in response.data
+    assert b"No attendance history available." in response.data
+
+
+# ==============================
+# ATTENDANCE CSV EXPORT TESTS
+# ==============================
+
+def test_attendance_csv_export(client):
+    login(client)
+    add_test_student(client, "Rahul", "101", "BCA")
+    add_test_student(client, "Priya", "102", "BSc")
+
+    response = client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        "status_1": "Present",
+        "status_2": "Absent"
+    })
+
+    assert response.status_code == 302
+
+    response = client.get("/attendance/export?date=2026-11-27")
+
+    assert response.status_code == 200
+    assert "text/csv" in response.content_type
+    assert "attendance_2026-11-27.csv" in response.headers[
+        "Content-Disposition"
+    ]
+
+    rows = list(csv.reader(
+        io.StringIO(response.get_data(as_text=True))
+    ))
+
+    assert rows[0] == [
+        "Attendance Date",
+        "Roll Number",
+        "Student Name",
+        "Course",
+        "Status"
+    ]
+
+    assert rows[1] == [
+        "2026-11-27", "101", "Rahul", "BCA", "Present"
+    ]
+
+    assert rows[2] == [
+        "2026-11-27", "102", "Priya", "BSc", "Absent"
+    ]
+
+
+def test_attendance_csv_export_selected_date(client):
+    login(client)
+    add_test_student(client)
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-26",
+        "status_1": "Present"
+    })
+
+    client.post("/attendance/save", data={
+        "date": "2026-11-27",
+        "status_1": "Absent"
+    })
+
+    response = client.get("/attendance/export?date=2026-11-26")
+
+    assert response.status_code == 200
+
+    rows = list(csv.reader(
+        io.StringIO(response.get_data(as_text=True))
+    ))
+
+    assert len(rows) == 2
+    assert rows[1][0] == "2026-11-26"
+    assert rows[1][4] == "Present"
+
+
+def test_attendance_csv_export_requires_login(client):
+    response = client.get("/attendance/export?date=2026-11-27")
+
+    assert response.status_code == 302
+    assert "/login" in response.location
+
+
+def test_attendance_csv_export_invalid_date(client):
+    login(client)
+
+    response = client.get("/attendance/export?date=invalid")
+
+    assert response.status_code == 400
+    assert b"Invalid attendance date" in response.data
